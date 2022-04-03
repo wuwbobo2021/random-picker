@@ -84,10 +84,8 @@ static unsigned int determine(double val, const std::vector<double>& grid)
 	
 	const double* p = grid.data();
 	if (val == p[sz - 1]) return sz - 2;
-	for (unsigned int i = 0; i < sz - 1; i++) {
+	for (unsigned int i = 0; i < sz - 1; i++)
 		if (val >= p[i] && val < p[i + 1]) return i;
-		else if (i == sz - 2 && val == p[i + 1]) return i;
-	}
 	
 	return 0; //it should be impossible
 }
