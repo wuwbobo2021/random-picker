@@ -19,7 +19,7 @@ Pi_m = Pi_<m-1> + pi * Σ(i1=1~n ex i)Σ(i2=1~n ex i,i1)...Σ(i<m-1>=1~n ex i,i1
                        {Π(j=1~m-1)[pij/(s-Σ(j'=1~j-1)pij')] / (s - Σ(j=1~m-1)pij)}
 (1 < m < n);
 
-Pi_n = 1/n.
+Pi_n = 1.
 ```
 in which the values in the table are p1 p2 p3...pn, 1 ≤ i ≤ n; s = Σ(i=1...n)pi; Pi_m is the probability of (i)th item's occurence when picking m items; i1...i(m-1) represent different levels of iterators.
 
