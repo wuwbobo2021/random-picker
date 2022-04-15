@@ -49,7 +49,19 @@ int main(int argc, char** argv)
 	if (arg_config) {config(arg_path); return 0;}
 	else if (!flag_opened || arg_amount == 0) {print_help(); return 0;}
 	
-	if (arg_show_table) {table.output(cout); return 0;}
+	if (arg_show_table) {
+		table.output(cout);
+		if (table.count() > 0 && arg_amount > 0) {
+			RandomPicker::Table cal; picker.calculate(arg_amount, cal);
+			cal.scale(100.0);
+			cout << "\nAbsolute values (%):\n";
+			cal.output(cout);
+			if (table.repetitive_picking)
+				cout << "Note: Probabilities in this table are for a picking operation of a single item, "
+				     << "you can calculate probability of <i>th item in a group of n items by: 1 - (1 - Pi)^m.\n";
+		}
+		return 0;
+	}
 	
 	if (! arg_test) {
 		vector<string> result;
@@ -61,9 +73,17 @@ int main(int argc, char** argv)
 		std::random_device ran_dev;
 		cout << "entropy() returned by current standard library random_device: "
 		     << ran_dev.entropy() << ".\n";
+		
 		RandomPicker::Table result;
-		picker.test(1000 * 1000, arg_amount, result);
-		cout << "Test result:\n";
+		picker.test(1000000, arg_amount, result);
+		
+		if (! table.repetitive_picking) {
+			result.scale(1.0 / 10000.0);
+			cout << "Test result indicating probabilities (%) of occurence in a group of results:\n";
+		} else {
+			result.scale(1.0 / (10000.0*arg_amount));
+			cout << "Test result of frequencies (%):\n";
+		}
 		result.output(cout);
 	}
 	
@@ -108,8 +128,9 @@ void print_help()
 	     << "Options:\n"
 	     << "-h\t\t\tShow this help\n"
 	     << "-c <file>\t\tDo configuration and save table file\n"
-	     << "-s <file>\t\tPrint current table\n"
-	     << "-t <file> <amount>\tTest the random engine\n";
+	     << "-s <file> [amount]\tPrint current table, show table of absolute values if amount is given\n"
+	     << "-t <file> <amount>\tTest the random engine by statistics of 1,000,000 groups of results\n"
+		 << "Note: When repetitive mode is off, <amount> must not exceed amount of items in the table.\n";
 }
 
 unsigned int read_value(const string& str)

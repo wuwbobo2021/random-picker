@@ -1,7 +1,7 @@
 # random-picker
 Generate random choices such as activities, places, foods that have different costs or prizes, based on a distribution table of relative values of probability.
 ```
-g++ table.cpp picker.cpp main.cpp -O3 -o random-picker -march=native
+g++ table.cpp picker.cpp main.cpp -O3 -march=native -o random-picker
 ```
 ## Known Problem
 When picking more than one items from the table with the repetitive mode turned off, the probability of each item will be higher and can be calculated by:
@@ -23,4 +23,9 @@ Pi_n = 1.
 ```
 in which the values in the table are p1 p2 p3...pn, 1 ≤ i ≤ n; s = Σ(i=1...n)pi; Pi_m is the probability of (i)th item's occurence when picking m items; i1...i(m-1) represent different levels of iterators.
 
-I am unable to simplify the formula above, that involves higher mathematics.
+This program is able to calculate them, but I am unable to simplify the formula above, that involves higher mathematics.
+
+Besides, when repetitive mode is on, you can calculate the probability of (i)th item's occurence by:
+```
+Pi_m = 1 - (1 - Pi)^m  (1 ≤ m ≤ n)
+```

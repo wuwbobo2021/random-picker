@@ -14,16 +14,20 @@ namespace RandomPicker
 class Picker
 {
 	Table& m_table;
+	std::vector<double> m_grid;
 	std::random_device m_ran_dev;
+	bool m_flag_testing = false;
 	
-	void draw(std::vector<double>& grid) const;
 	double random_value(double width); //0.0 ~ width
+	void draw();
+	unsigned int determine(double val) const;
 	
 public:
 	Picker(Table& table);
 	void pick(unsigned int amount, std::vector<unsigned int>& result);
 	void pick(unsigned int amount, std::vector<std::string>& result);
 	void test(unsigned int times, unsigned int amount, Table& result);
+	void calculate(unsigned int pick_amount, Table& result) const;
 };
 
 inline Picker::Picker(Table& table):

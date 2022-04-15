@@ -34,6 +34,21 @@ int Table::find_name(const std::string& name) const
 	return -1;
 }
 
+void Table::scale(float scaler)
+{
+	for (unsigned int i = 0; i < this->count(); i++)
+		m_vect[i].value(scaler * m_vect[i].value());
+}
+
+void Table::inverse()
+{
+	for (unsigned int i = 0; i < this->count(); i++)
+		if (m_vect[i].value() > 0)
+			m_vect[i].value(1.0 / m_vect[i].value());
+	
+	this->power_inversed = ! this->power_inversed;
+}
+
 bool Table::input(std::istream& ist)
 {
 	std::string name; double val; Item it("none", 0);

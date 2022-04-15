@@ -70,6 +70,8 @@ public:
 	void item(Item& item);
 	
 	void clear();
+	void scale(float scaler);
+	void inverse();
 	bool input(std::istream& ist);
 	bool output(std::ostream& ost) const;
 	
