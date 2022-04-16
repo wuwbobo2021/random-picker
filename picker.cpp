@@ -105,51 +105,51 @@ void Picker::calculate(unsigned int pick_amount, Table& result) const
 	
 	if (tbl.repetitive_picking || pick_amount == 1) {
 		tbl.scale(1.0 / width);
-		result = tbl;
+		result = tbl; return;
 	} else if (pick_amount == tbl.count()) {
 		for (unsigned int i = 0; i < tbl.count(); i++)
 			tbl[i].value(1);
-		result = tbl;
-	} else {
-		double pro[tbl.count()] = {0};
-		unsigned int stack[pick_amount] = {0}; unsigned int dep = 0;
-		bool picked[tbl.count()] = {false};
-		bool flag_back = false;
-		
-		while (true) {
-			unsigned int i = stack[dep]; bool pre_picked = picked[i];
-			if (!pre_picked && !flag_back) {
-				picked[i] = true;
-				
-				double cur_pro = 1.0, tmp_width = width;
-				for (unsigned int j = 0; j <= dep; j++) { //do such calculations every time to avoid lose of accuracy
-					cur_pro *= tbl[stack[j]].value() / tmp_width;
-					tmp_width -= tbl[stack[j]].value();
-				}
-				pro[i] += cur_pro;
+		result = tbl; return;
+	}
+	
+	double pro[tbl.count()] = {0};
+	unsigned int stack[pick_amount] = {0}; unsigned int dep = 0;
+	bool picked[tbl.count()] = {false};
+	bool flag_back = false;
+	
+	while (true) {
+		unsigned int i = stack[dep]; bool pre_picked = picked[i];
+		if (!pre_picked && !flag_back) {
+			picked[i] = true;
+			
+			double cur_pro = 1.0, tmp_width = width;
+			for (unsigned int j = 0; j <= dep; j++) { //do such calculations every time to avoid loss of accuracy
+				cur_pro *= tbl[stack[j]].value() / tmp_width;
+				tmp_width -= tbl[stack[j]].value();
 			}
-			if (!pre_picked && !flag_back && dep < pick_amount - 1) { //go down
-				dep++; stack[dep] = 0;
-			} else if (i < tbl.count() - 1) { //go right
-				if (!pre_picked || flag_back) picked[i] = false;
-				stack[dep]++; flag_back = false;
-			} else { //go back or break
-				bool first_loop = true;
-				while (stack[dep] >= tbl.count() - 1) {
-					if (dep == 0) break;
-					if (! (first_loop && pre_picked)) //else: last node is null and is of an item picked above
-						picked[stack[dep]] = false;
-					dep--; first_loop = false;
-				}
-				if (dep == 0 && stack[dep] >= tbl.count() - 1) break;
-				flag_back = true; //when flag_back become true, the next loop should goto its right sibling
+			pro[i] += cur_pro;
+		}
+		if (!pre_picked && !flag_back && dep < pick_amount - 1) { //go down
+			dep++; stack[dep] = 0;
+		} else if (i < tbl.count() - 1) { //go right
+			if (!pre_picked || flag_back) picked[i] = false;
+			stack[dep]++; flag_back = false;
+		} else { //go back or break
+			bool first_loop = true;
+			while (stack[dep] >= tbl.count() - 1) {
+				if (dep == 0) break;
+				if (! (first_loop && pre_picked)) //else: last node is null and is of an item picked above
+					picked[stack[dep]] = false;
+				dep--; first_loop = false;
 			}
+			if (dep == 0 && stack[dep] >= tbl.count() - 1) break;
+			flag_back = true; //when flag_back become true, the next loop should goto its right sibling
 		}
-		
-		result.clear();
-		for (unsigned int i = 0; i < tbl.count(); i++) {
-			Item item(tbl[i].name(), pro[i]);
-			result.item(item);
-		}
+	}
+	
+	result.clear();
+	for (unsigned int i = 0; i < tbl.count(); i++) {
+		Item item(tbl[i].name(), pro[i]);
+		result.item(item);
 	}
 }
