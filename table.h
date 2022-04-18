@@ -54,7 +54,7 @@ inline bool Item::value(double value)
 
 class Table
 {
-	std::vector<Item> m_vect;
+	std::vector<Item> m_vect; unsigned int m_count = 0;
 	
 	int find_name(const std::string& name) const;
 	
@@ -70,6 +70,7 @@ public:
 	void item(Item& item);
 	
 	void clear();
+	void remove_impossible();
 	void scale(float scaler);
 	void inverse();
 	bool input(std::istream& ist);
@@ -81,17 +82,17 @@ public:
 
 inline unsigned int Table::count() const
 {
-	return m_vect.size();
+	return m_count;
 }
 
 inline bool Table::is_empty() const
 {
-	return this->count() == 0;
+	return m_count == 0;
 }
 
 inline Item& Table::operator[](unsigned int index)
 {
-	if (index > this->count() - 1)
+	if (index > m_count - 1)
 		throw std::invalid_argument("Table::operator[](): invalid index.");
 	return m_vect[index];
 }
@@ -106,15 +107,15 @@ inline double Table::item_value(const std::string& name) const
 inline void Table::item(Item& item)
 {
 	int i = this->find_name(item.name());
-	if (i < 0)
-		m_vect.push_back(item);
-	else
+	if (i < 0) {
+		m_vect.push_back(item); m_count++;
+	} else
 		m_vect[i].value(item.value());
 }
 
 inline void Table::clear()
 {
-	m_vect.clear();
+	m_vect.clear(); m_count = 0;
 }
 
 }

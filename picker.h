@@ -15,11 +15,12 @@ class Picker
 {
 	Table& m_table;
 	std::vector<double> m_grid;
+	std::vector<char> m_vect_picked; //bool. char is used to avoid the specific implementation of vector<bool>.
 	std::random_device m_ran_dev;
 	bool m_flag_testing = false;
 	
 	double random_value(double width); //0.0 ~ width
-	void draw();
+	void draw(); //draw the grid for all items in the table
 	unsigned int determine(double val) const;
 	
 public:

@@ -28,21 +28,31 @@ bool Item::name(const std::string& name)
 
 int Table::find_name(const std::string& name) const
 {
-	for (unsigned int i = 0; i < this->count(); i++)
+	for (unsigned int i = 0; i < m_count; i++)
 		if (m_vect[i].name() == name) return i;
 	
 	return -1;
 }
 
+void Table::remove_impossible()
+{
+	for (unsigned int i = 0; i < m_count; i++) {
+		if (m_vect[i].value() == 0) {
+			m_vect.erase(m_vect.begin() + i);
+			m_count--; i--; //stay at the previous position in the next loop
+		}
+	}
+}
+
 void Table::scale(float scaler)
 {
-	for (unsigned int i = 0; i < this->count(); i++)
+	for (unsigned int i = 0; i < m_count; i++)
 		m_vect[i].value(scaler * m_vect[i].value());
 }
 
 void Table::inverse()
 {
-	for (unsigned int i = 0; i < this->count(); i++)
+	for (unsigned int i = 0; i < m_count; i++)
 		if (m_vect[i].value() > 0)
 			m_vect[i].value(1.0 / m_vect[i].value());
 	
@@ -61,7 +71,7 @@ bool Table::input(std::istream& ist)
 			ist >> name; if (! ist) return true;
 			unsigned int i = this->find_name(name);
 			if (i < 0) continue;
-			m_vect.erase(m_vect.begin() + i); continue;
+			m_vect.erase(m_vect.begin() + i); m_count--; continue;
 		}
 		else if (name == String_Repetitive_Picking) {
 			this->repetitive_picking = true; continue;
@@ -92,7 +102,7 @@ bool Table::output(std::ostream& ost) const
 	if (this->power_inversed)
 		ost << String_Power_Inversed << '\n';
 	
-	unsigned int cnt = this->count();
+	unsigned int cnt = m_count;
 	for (unsigned int i = 0; i < cnt; i++)
 		ost << m_vect[i].name() << "\t\t" << m_vect[i].value() << '\n';
 	
@@ -101,6 +111,7 @@ bool Table::output(std::ostream& ost) const
 
 bool Table::open(const std::string& path)
 {
+	this->clear();
 	std::ifstream ifs(path, std::ios_base::in);
 	if (! ifs.is_open()) return false;
 	return this->input(ifs);
