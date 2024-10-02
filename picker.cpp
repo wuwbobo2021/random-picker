@@ -47,7 +47,9 @@ void Picker::test(unsigned int times, unsigned int amount, Table& result)
 {
 	if (amount == 0 || times == 0) return;
 	
-	unsigned int stat[m_table.count()] = {0};
+	std::vector<unsigned int> vect_stat(m_table.count());
+	unsigned int* stat = vect_stat.data();
+	
 	std::vector<unsigned int> vect;
 	this->draw(); if (m_grid[m_table.count()] == 0) return;
 	m_vect_picked.resize(m_table.count());
