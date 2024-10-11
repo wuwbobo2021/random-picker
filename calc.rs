@@ -2,12 +2,19 @@ use crate::*;
 use std::{hash::Hash, thread};
 
 impl<T: Clone + Eq + Hash> Config<T> {
-    /// Calculates probabilities of existences of table items
-    /// in each picking result of length `pick_amount`.
-    /// In non-repetitive mode, the multi-thread tree algorithm may be used.
+    /// Calculates probabilities of existences of table items in each picking result
+    /// of length `pick_amount`. In non-repetitive mode, the multi-thread tree algorithm
+    /// may be used.
     ///
-    /// TODO: figure out why its single-thread performance is 10.3% slower
-    /// than the previous C++ version, and unsafe operations can't make it faster.
+    /// Preorder traversal is performed in each thread. Something like depth-first or
+    /// postorder algorithm may achieve higher precision (consider the error produced
+    /// while adding a small floating-point number to a much larger number, which is
+    /// the current way), but it will probably increase complexity and memory usage.
+    ///
+    /// TODO: figure out why its single-thread performance is about 7% slower than
+    /// the single-thread C++ version compiled with `clang++` without `-march=native`,
+    /// and unsafe operations can't make this Rust program faster.
+    /// It is faster than the C++ version compiled with GCC, though.
     pub fn calc_probabilities(&self, pick_amount: usize) -> Result<Table<T>, Error> {
         if pick_amount == 0 {
             return Ok(self.table.keys().map(|k| (k.clone(), 0.)).collect());
@@ -66,14 +73,9 @@ impl<T: Clone + Eq + Hash> Config<T> {
                     break;
                 }
                 table_picked[i_th] = true;
-                calcs.push((
-                    i_th,
-                    Some(CalcStack::new(
-                        table_val.clone(),
-                        pick_amount,
-                        table_picked.clone(),
-                    )),
-                ));
+                let calc_stack =
+                    CalcStack::new(table_val.clone(), pick_amount, table_picked.clone());
+                calcs.push((i_th, Some(calc_stack)));
                 table_picked[i_th] = false;
             }
             calc_groups.push(calcs);

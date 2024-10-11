@@ -7,6 +7,7 @@ pub type Table<T> = HashMap<T, f64, std::hash::RandomState>;
 /// Configuration required by `Picker`. All members are public
 /// and are supposed to be modified by the user.
 #[derive(Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "serde-config", derive(serde::Serialize, serde::Deserialize))]
 pub struct Config<T: Clone + Eq + Hash> {
     /// Table of choices and weights which are proportional to the probabilities
     /// on repetitive mode or single-item mode.
@@ -22,6 +23,12 @@ pub struct Config<T: Clone + Eq + Hash> {
 impl<T: Clone + Eq + Hash> Config<T> {
     /// Returns an invalid configuration with an empty table.
     /// Please add items into the table before using it to construct `Picker`.
+    ///
+    /// ```
+    /// let conf = random_picker::Config::<String>::new();
+    /// assert!(!conf.inversed && !conf.repetitive);
+    /// assert!(conf.check().is_err());
+    /// ```
     #[inline]
     pub fn new() -> Self {
         Self {
@@ -32,19 +39,44 @@ impl<T: Clone + Eq + Hash> Config<T> {
     }
 
     /// Checks whether or not the table can be used by `Picker`.
+    ///
+    /// ```
+    /// let mut conf: random_picker::Config<String> = "
+    ///     a = -1; b = 0; c = 2
+    /// ".parse().unwrap();
+    /// assert!(conf.check().is_err());
+    /// conf.table.insert("a".to_string(), 1.);
+    /// assert!(conf.check().is_ok());
+    /// conf.inversed = true;
+    /// assert!(conf.check().is_err());
+    /// conf.table.insert("b".to_string(), 0.1);
+    /// assert!(conf.check().is_ok());
+    /// ```
     pub fn check(&self) -> Result<(), Error> {
-        if self.table.is_empty() {
-            return Err(Error::InvalidTable);
-        }
+        let mut non_empty = false;
         for &v in self.table.values() {
             if v < 0. || (self.inversed && v == 0.) {
                 return Err(Error::InvalidTable);
             }
+            if v > 0. {
+                non_empty = true;
+            }
         }
-        Ok(())
+        non_empty.then_some(()).ok_or(Error::InvalidTable)
     }
 
     /// Returns `true` if all items have equal (and valid) weight values.
+    ///
+    /// ```
+    /// let mut conf: random_picker::Config<String> = "
+    ///     a = -1; b = 1; c = 1.1
+    /// ".parse().unwrap();
+    /// assert!(!conf.is_fair());
+    /// conf.table.insert("a".to_string(), 1.);
+    /// assert!(!conf.is_fair());
+    /// conf.table.insert("c".to_string(), 1.);
+    /// assert!(conf.is_fair());
+    /// ```
     pub fn is_fair(&self) -> bool {
         if self.check().is_err() {
             return false;
@@ -65,7 +97,11 @@ impl<T: Clone + Eq + Hash> Config<T> {
     pub(crate) fn vec_table(&self) -> Result<Vec<(T, f64)>, Error> {
         self.check()?;
         let vec = if !self.inversed {
-            self.table.iter().map(|(k, &v)| (k.clone(), v)).collect()
+            self.table
+                .clone()
+                .into_iter()
+                .filter(|&(_, v)| v > 0.)
+                .collect()
         } else {
             self.table
                 .iter()
@@ -88,40 +124,49 @@ impl Config<String> {
     ///
     /// ```
     /// let mut conf: random_picker::Config<String> = "
+    /// ## 'repetitive' and 'inversed' are special items
     /// repetitive = true
     /// inversed = false
-    /// # this line can be ignored
+    /// ## this line can be ignored
     /// [items]
     /// oxygen = 47
-    /// sillicon = 28
+    /// silicon = 28
     /// aluminium=8; iron=5; magnesium=4;
-    /// calcium=2: potassium=2: sodium=2:
+    /// calcium=2; potassium=2; sodium=2
     /// others = 2; nonexistium = 31
-    ///    aluminium = 9; delete nonexistium
+    ///    aluminium 7.9; delete nonexistium
     /// ".parse().unwrap();
     /// assert_eq!(conf.table.len(), 9);
     /// assert_eq!(conf.repetitive, true);
     /// assert_eq!(conf.inversed, false);
-    /// assert_eq!(conf.table.get("aluminium"), Some(&9.));
+    /// assert_eq!(conf.table.get("aluminium"), Some(&7.9));
     ///
     /// conf.append_str("\
+    /// ## power_inversed/repetitive_picking without '=' are for the old format
     /// power_inversed
-    /// ## invalid: repetitive = 0
+    /// ## invalid: repetitive = 0 (0 is not bool)
     /// repetitive = 0
-    /// delete others
+    /// silicon = 28.1
     /// ");
-    /// assert_eq!(conf.repetitive, true);
     /// assert_eq!(conf.inversed, true);
     ///
     /// conf.append_str("inversed = false");
-    /// assert_eq!(conf.inversed, false);
+    /// assert_eq!(conf, random_picker::Config {
+    ///     table: [
+    ///         ("oxygen", 47.), ("silicon", 28.1), ("aluminium", 7.9),
+    ///         ("iron", 5.), ("magnesium", 4.), ("calcium", 2.),
+    ///         ("sodium", 2.), ("potassium", 2.), ("others", 2.),
+    ///     ].iter().map(|&(k, v)| (k.to_string(), v)).collect(),
+    ///     inversed: false,
+    ///     repetitive: true
+    /// });
     /// ```
     pub fn append_str(&mut self, str_items: &str) {
-        for line in str_items.split(&['\r', '\n', ';', ':']) {
+        for line in str_items.split(&['\r', '\n', ';']) {
             let mut spl = line.split(&[' ', '\t', '=']).filter(|s| !s.is_empty());
             let item_name;
             if let Some(s) = spl.next() {
-                if s.chars().nth(0) == Some('#') {
+                if let Some('#') = s.chars().nth(0) {
                     continue;
                 }
                 item_name = s;
@@ -132,20 +177,17 @@ impl Config<String> {
             // compatible with the old table format
             if item_name == "power_inversed" {
                 self.inversed = true;
-                continue;
-            }
-            if item_name == "repetitive_picking" {
+            } else if item_name == "repetitive_picking" {
                 self.repetitive = true;
-                continue;
-            }
-
-            if let Some(s) = spl.last() {
+            } else if let Some(s) = spl.last() {
                 if item_name == "delete" {
                     let _ = self.table.remove(s);
-                } else if let Ok(b) = bool::from_str(s) {
-                    if item_name == "inversed" {
+                } else if item_name == "inversed" {
+                    if let Ok(b) = bool::from_str(s) {
                         self.inversed = b;
-                    } else if item_name == "repetitive" {
+                    }
+                } else if item_name == "repetitive" {
+                    if let Ok(b) = bool::from_str(s) {
                         self.repetitive = b;
                     }
                 } else if let Ok(v) = f64::from_str(s) {

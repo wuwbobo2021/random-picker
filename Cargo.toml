@@ -1,9 +1,10 @@
 [package]
 name = "random-picker"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["wuwbobo2021 <wuwbobo@outlook.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/wuwbobo2021/random-picker"
 readme = "README.md"
 description = """
 Generates random choices based on the weight table of probabilities. It can be used to calculate each item's probability of being picked up when picking a given amount of non-repetitive items, or to compare the speed of OS random source with that of the CSPRNG.
@@ -13,6 +14,10 @@ categories = ["command-line-utilities", "algorithms"]
 
 [dependencies]
 rand = "0.8.5"
+serde = { version = "1.0", features = ["derive"], optional = true }
+
+[features]
+serde-config = ["dep:serde"]
 
 [profile.release]
 opt-level = 3

@@ -14,9 +14,13 @@ pub use crate::{config::*, picker::*};
 /// Possible errors returned by functions in this crate.
 #[derive(Debug)]
 pub enum Error {
+    /// The table is invalid and cannot be used by the picker.
     InvalidTable,
+    /// The given amount exceeds the amount of possible items in the table.
     InvalidAmount,
+    /// Error from the random generator.
     RandError(rand::Error),
+    /// Failure of the multi-thread probability calculator.
     ThreadError,
 }
 

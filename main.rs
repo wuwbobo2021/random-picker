@@ -15,7 +15,7 @@ test    Get a frequency table by statistics of 5,000,000 groups of results
 Note:
 `pick_amount` is set to 1 if not given, and it makes no sense with `conf`.
 When repetitive mode is off, `pick_amount` must not exceed the table length.
-More information: <https://docs.rs/random_picker/0.2.0>
+More information: <https://crates.io/crates/random-picker/0.2.1>
 ";
 
 const TEST_TIMES: usize = 5_000_000;
@@ -81,7 +81,7 @@ impl Params {
 
 fn main() {
     let params = Params::build(std::env::args()).unwrap_or_else(|err| {
-        println!("Failed to parse arguments: {err}");
+        eprintln!("Failed to parse arguments: {err}");
         print!("\n{MSG_HELP}");
         std::process::exit(1);
     });
@@ -94,7 +94,8 @@ fn main() {
     }
     if params.operation != Operation::Conf {
         if conf.check().is_err() {
-            panic!("Failed to open table file");
+            eprintln!("Failed to open table file");
+            std::process::exit(1);
         }
     } else {
         configure(&mut conf);
@@ -118,7 +119,7 @@ fn main() {
                         print!("{item} ");
                     }
                     if !is_fair {
-                        print!("(unfair)");
+                        print!("(nonuniform)");
                     }
                     println!();
                 }
@@ -145,7 +146,8 @@ fn main() {
                     picker.test_freqs(params.pick_amount, TEST_TIMES)
                 };
                 if let Err(e) = result {
-                    panic!("Error: {e}");
+                    eprintln!("Error: {e}");
+                    std::process::exit(1);
                 }
                 table = result.unwrap();
             });
@@ -167,7 +169,8 @@ fn configure(conf: &mut random_picker::Config<String>) {
     if let Some(b) = ask_yes_no("Should the probability values be inversed (x -> 1/x)?") {
         conf.inversed = b;
     }
-    println!("Input items by line: <name> <val> (val: positive numeric value)");
+    println!("Input items by line (or use ';' seperator): <name> [=] <val>");
+    println!("(name: string without space, val: positive numeric value)");
     println!("delete item with `delete <name>`, enter `end` to end input: ");
     let mut lines_input = io::stdin().lines();
     while let Some(Ok(s)) = lines_input.next() {
@@ -178,7 +181,8 @@ fn configure(conf: &mut random_picker::Config<String>) {
     }
     print!("\nNew configuration:\n{conf}");
     if let Err(e) = conf.check() {
-        panic!("Error: {e}");
+        eprintln!("Error: {e}");
+        std::process::exit(1);
     }
 }
 

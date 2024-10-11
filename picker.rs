@@ -3,6 +3,14 @@ use rand::{rngs::OsRng, RngCore};
 use std::hash::Hash;
 
 /// Convenience wrapper for exactly one picking operation.
+///
+/// ```
+/// let picks: Vec<String> = random_picker::pick(2,
+///     "a=1;b=15;c=1.5".parse().unwrap()
+/// ).unwrap();
+/// // nonrepetitive by default
+/// assert!(picks.iter().any(|k| k == "a" || k == "c"));
+/// ```
 pub fn pick<T: Clone + Eq + Hash>(amount: usize, conf: Config<T>) -> Result<Vec<T>, Error> {
     Picker::build(conf)?.pick(amount)
 }
@@ -16,21 +24,25 @@ pub struct Picker<T: Clone + Eq + Hash, R: RngCore> {
     grid: Vec<f64>,
     grid_width: f64,
     repetitive: bool,
+
+    // read it after calling `pick_indexes()`
+    picked_indexes: Vec<usize>,
 }
 
 impl<T: Clone + Eq + Hash> Picker<T, OsRng> {
-    /// Build the `Picker` with given configuration, using the OS random source.
+    /// Builds the `Picker` with given configuration, using the OS random source.
     pub fn build(conf: Config<T>) -> Result<Self, Error> {
         Picker::build_with_rng(conf, OsRng)
     }
 }
 
 impl<T: Clone + Eq + Hash, R: RngCore> Picker<T, R> {
-    /// Build the `Picker` with given configuration and the given random source.
+    /// Builds the `Picker` with given configuration and the given random source.
     pub fn build_with_rng(conf: Config<T>, rng: R) -> Result<Self, Error> {
         let table = conf.vec_table()?;
+        let table_len = table.len();
 
-        let mut grid = Vec::with_capacity(table.len() + 1);
+        let mut grid = Vec::with_capacity(table_len);
         let mut cur = 0.;
         for (_, val) in &table {
             cur += val;
@@ -44,20 +56,48 @@ impl<T: Clone + Eq + Hash, R: RngCore> Picker<T, R> {
             grid,
             grid_width,
             repetitive: conf.repetitive,
+            picked_indexes: Vec::with_capacity(table_len),
         })
     }
 
-    /// Returns the size of the weight table that contains all possible choices.
+    /// Returns the size of the weight table that contains all possible choices (p > 0).
+    ///
+    /// ```
+    /// use random_picker::Picker;
+    /// let mut conf: random_picker::Config<String> = "
+    ///     a = 0; b = 1; c = 1.1
+    /// ".parse().unwrap();
+    /// let picker = Picker::build(conf.clone()).unwrap();
+    /// assert_eq!(picker.table_len(), 2);
+    /// conf.append_str("b = 0; c = 0");
+    /// assert!(Picker::build(conf).is_err());
+    /// ```
     #[inline(always)]
     pub fn table_len(&self) -> usize {
         self.table.len()
     }
 
     /// Picks `amount` of items and returns the group of items.
+    /// `amount` must not exceed `table_len()`.
+    #[inline(always)]
     pub fn pick(&mut self, amount: usize) -> Result<Vec<T>, Error> {
-        let mut picks = Vec::with_capacity(amount);
-        self.pick_indexes(amount, &mut picks)?;
-        Ok(picks.iter().map(|&i| self.item_key(i)).collect())
+        self.pick_indexes(amount)?;
+        Ok(self
+            .picked_indexes
+            .iter()
+            .map(|&i| self.item_key(i))
+            .collect())
+    }
+
+    /// Picks `dest.len()` of items and writes them into `dest` (avoids allocation).
+    /// Length of `dest` must not exceed `table_len()`.
+    #[inline]
+    pub fn write_to(&mut self, dest: &mut [T]) -> Result<(), Error> {
+        self.pick_indexes(dest.len())?;
+        for (i, k) in dest.iter_mut().enumerate() {
+            *k = self.item_key(self.picked_indexes[i]);
+        }
+        Ok(())
     }
 
     /// Evaluates probabilities of existences of table items in each group
@@ -94,24 +134,21 @@ impl<T: Clone + Eq + Hash, R: RngCore> Picker<T, R> {
     /// ```
     pub fn test_freqs(&mut self, amount: usize, test_times: usize) -> Result<Table<T>, Error> {
         let mut tbl_freq = vec![0_usize; self.table_len()];
-        let mut vec_picks = Vec::with_capacity(self.table_len());
         if !self.repetitive {
             for _ in 0..test_times {
-                vec_picks.clear();
-                self.pick_indexes(amount, &mut vec_picks)?;
-                for &idx in &vec_picks {
+                self.pick_indexes(amount)?;
+                for &idx in &self.picked_indexes {
                     tbl_freq[idx] += 1;
                 }
             }
         } else {
             let mut tbl_picked = vec![false; self.table_len()];
             for _ in 0..test_times {
-                vec_picks.clear();
                 for b in tbl_picked.iter_mut() {
                     *b = false;
                 }
-                self.pick_indexes(amount, &mut vec_picks)?;
-                for &idx in &vec_picks {
+                self.pick_indexes(amount)?;
+                for &idx in &self.picked_indexes {
                     if !tbl_picked[idx] {
                         tbl_freq[idx] += 1;
                         tbl_picked[idx] = true;
@@ -129,14 +166,16 @@ impl<T: Clone + Eq + Hash, R: RngCore> Picker<T, R> {
         Ok(table)
     }
 
+    /// Picks `amount` of indexes and replaces values in `self.picked_indexes`.
     #[inline]
-    fn pick_indexes(&mut self, amount: usize, vec: &mut Vec<usize>) -> Result<(), Error> {
+    fn pick_indexes(&mut self, amount: usize) -> Result<(), Error> {
         if !self.repetitive && amount > self.table_len() {
             return Err(Error::InvalidAmount);
         }
+        self.picked_indexes.clear();
 
         let mut tbl_picked = vec![false; self.table_len()];
-        while vec.len() < amount {
+        while self.picked_indexes.len() < amount {
             let i = self.pick_index()?;
             if !self.repetitive {
                 if tbl_picked[i] {
@@ -144,7 +183,7 @@ impl<T: Clone + Eq + Hash, R: RngCore> Picker<T, R> {
                 }
                 tbl_picked[i] = true;
             }
-            vec.push(i);
+            self.picked_indexes.push(i);
         }
         Ok(())
     }
