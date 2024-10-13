@@ -6,16 +6,17 @@ use std::{
 };
 
 const MSG_HELP: &str = "\
-random-picker [conf|calc|test] <table_file> [pick_amount] [-f]
+random-picker [conf|calc|test] <table_file> [pick_amount] [-n] [-f]
 Description:
 conf    Create the table file by user input
 calc    Calculate and print probabilities of being picked up
 test    Get a frequency table by statistics of 5,000,000 groups of results
+-n      Do not print warning for the nonuniform distribution
 -f      Use the fast pseudo random generator instead of OS random source
 Note:
 `pick_amount` is set to 1 if not given, and it makes no sense with `conf`.
 When repetitive mode is off, `pick_amount` must not exceed the table length.
-More information: <https://crates.io/crates/random-picker/0.2.1>
+More information: <https://crates.io/crates/random-picker/0.2.2>
 ";
 
 const TEST_TIMES: usize = 5_000_000;
@@ -24,6 +25,7 @@ struct Params {
     operation: Operation,
     table_path: PathBuf,
     pick_amount: usize,
+    know_nonuniform: bool,
     use_fast_rng: bool,
 }
 
@@ -41,6 +43,7 @@ impl Params {
             operation: Operation::Pick,
             table_path: PathBuf::new(),
             pick_amount: 1,
+            know_nonuniform: false,
             use_fast_rng: false,
         };
 
@@ -52,6 +55,7 @@ impl Params {
                 "conf" => params.operation = Operation::Conf,
                 "calc" => params.operation = Operation::Calc,
                 "test" => params.operation = Operation::Test,
+                "-n" => params.know_nonuniform = true,
                 "-f" => params.use_fast_rng = true,
                 _ => {
                     if let Ok(n) = usize::from_str(&arg) {
@@ -118,7 +122,7 @@ fn main() {
                     for item in table {
                         print!("{item} ");
                     }
-                    if !is_fair {
+                    if !is_fair && !params.know_nonuniform {
                         print!("(nonuniform)");
                     }
                     println!();

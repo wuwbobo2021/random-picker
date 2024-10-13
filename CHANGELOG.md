@@ -1,5 +1,10 @@
 # Changes
 
+## 0.2.2 (2024-10-14)
+* The "(nonuniform)" command line warning can be disabled by `-n`.
+* Avoids allocation in the internal function `Picker::pick_indexes()`.
+* `Picker` can be reconfigured with a new `Config`.
+
 ## 0.2.1 (2024-10-12)
 * Changed the "(unfair)" command line warning to "(nonuniform)".
 * Added `Picker::write_to()` function that writes to a provided slice, avoiding unnecessary allocation.

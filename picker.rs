@@ -2,31 +2,19 @@ use crate::*;
 use rand::{rngs::OsRng, RngCore};
 use std::hash::Hash;
 
-/// Convenience wrapper for exactly one picking operation.
-///
-/// ```
-/// let picks: Vec<String> = random_picker::pick(2,
-///     "a=1;b=15;c=1.5".parse().unwrap()
-/// ).unwrap();
-/// // nonrepetitive by default
-/// assert!(picks.iter().any(|k| k == "a" || k == "c"));
-/// ```
-pub fn pick<T: Clone + Eq + Hash>(amount: usize, conf: Config<T>) -> Result<Vec<T>, Error> {
-    Picker::build(conf)?.pick(amount)
-}
-
 /// Generator of groups of random items of type `T` with different probabilities.
 /// According to the configuration, items in each group can be either
 /// repetitive or non-repetitive.
 pub struct Picker<T: Clone + Eq + Hash, R: RngCore> {
     rng: R,
+
     table: Vec<(T, f64)>,
     grid: Vec<f64>,
     grid_width: f64,
     repetitive: bool,
 
-    // read it after calling `pick_indexes()`
-    picked_indexes: Vec<usize>,
+    table_picked: Vec<bool>,    // used in `pick_indexes()`, size: table.len()
+    picked_indexes: Vec<usize>, // read it after calling `pick_indexes()`
 }
 
 impl<T: Clone + Eq + Hash> Picker<T, OsRng> {
@@ -39,25 +27,40 @@ impl<T: Clone + Eq + Hash> Picker<T, OsRng> {
 impl<T: Clone + Eq + Hash, R: RngCore> Picker<T, R> {
     /// Builds the `Picker` with given configuration and the given random source.
     pub fn build_with_rng(conf: Config<T>, rng: R) -> Result<Self, Error> {
-        let table = conf.vec_table()?;
-        let table_len = table.len();
-
-        let mut grid = Vec::with_capacity(table_len);
-        let mut cur = 0.;
-        for (_, val) in &table {
-            cur += val;
-            grid.push(cur);
-        }
-        let grid_width = *grid.last().unwrap();
-
-        Ok(Self {
+        let table_len = conf.table.len();
+        let mut picker = Self {
             rng,
-            table,
-            grid,
-            grid_width,
+            table: Vec::with_capacity(table_len),
+            grid: Vec::with_capacity(table_len),
+            grid_width: 0.,
             repetitive: conf.repetitive,
+            table_picked: Vec::with_capacity(table_len),
             picked_indexes: Vec::with_capacity(table_len),
-        })
+        };
+        picker.configure(conf)?;
+        Ok(picker)
+    }
+
+    /// Applies new configuration.
+    pub fn configure(&mut self, conf: Config<T>) -> Result<(), Error> {
+        self.table = conf.vec_table()?;
+        let table_len = self.table.len();
+
+        self.grid.clear();
+        self.grid.reserve(table_len);
+        let mut cur = 0.;
+        for (_, val) in &self.table {
+            cur += val;
+            self.grid.push(cur);
+        }
+        self.grid_width = *self.grid.last().unwrap();
+
+        self.repetitive = conf.repetitive;
+
+        self.table_picked.resize(table_len, false);
+        self.picked_indexes.reserve(table_len);
+
+        Ok(())
     }
 
     /// Returns the size of the weight table that contains all possible choices (p > 0).
@@ -144,9 +147,7 @@ impl<T: Clone + Eq + Hash, R: RngCore> Picker<T, R> {
         } else {
             let mut tbl_picked = vec![false; self.table_len()];
             for _ in 0..test_times {
-                for b in tbl_picked.iter_mut() {
-                    *b = false;
-                }
+                tbl_picked.fill(false);
                 self.pick_indexes(amount)?;
                 for &idx in &self.picked_indexes {
                     if !tbl_picked[idx] {
@@ -174,14 +175,14 @@ impl<T: Clone + Eq + Hash, R: RngCore> Picker<T, R> {
         }
         self.picked_indexes.clear();
 
-        let mut tbl_picked = vec![false; self.table_len()];
+        self.table_picked.fill(false);
         while self.picked_indexes.len() < amount {
             let i = self.pick_index()?;
             if !self.repetitive {
-                if tbl_picked[i] {
+                if self.table_picked[i] {
                     continue;
                 }
-                tbl_picked[i] = true;
+                self.table_picked[i] = true;
             }
             self.picked_indexes.push(i);
         }

@@ -11,6 +11,22 @@ mod picker;
 
 pub use crate::{config::*, picker::*};
 
+/// Convenience wrapper for exactly one picking operation.
+///
+/// ```
+/// let picks: Vec<String> = random_picker::pick(2,
+///     "a=1;b=15;c=1.5".parse().unwrap()
+/// ).unwrap();
+/// // nonrepetitive by default
+/// assert!(picks.iter().any(|k| k == "a" || k == "c"));
+/// ```
+pub fn pick<T>(amount: usize, conf: Config<T>) -> Result<Vec<T>, Error>
+where
+    T: Clone + Eq + std::hash::Hash,
+{
+    Picker::build(conf)?.pick(amount)
+}
+
 /// Possible errors returned by functions in this crate.
 #[derive(Debug)]
 pub enum Error {

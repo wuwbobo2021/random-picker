@@ -6,4 +6,4 @@ Documentation: <https://docs.rs/random_picker/latest>.
 
 Current version of this program is able to load table files created by [the old C++ version](https://github.com/wuwbobo2021/random-picker/releases/tag/0.1), just for comparing their behaviors.
 
-This project is looking for new maintainers having more knowledge and interests in this topic.
+This crate is looking for new maintainers having more knowledge and interests in this topic.
