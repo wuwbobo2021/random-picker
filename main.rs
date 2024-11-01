@@ -11,7 +11,7 @@ random-picker [conf|calc|test] <table_file> [pick_amount] [-n] [-f]
 Description:
 conf    Create the table file by user input
 calc    Calculate and print probabilities of being picked up
-test    Get a frequency table by statistics of given amount of results
+test    Generate some amount of results and print the frequency table
 -n      Do not print warning for the nonuniform distribution
 -f      Use the fast pseudo random generator instead of OS random source
 Note:
