@@ -136,6 +136,10 @@ impl<T: Clone + Eq + Hash, R: RngCore> Picker<T, R> {
     /// }
     /// ```
     pub fn test_freqs(&mut self, amount: usize, test_times: usize) -> Result<Table<T>, Error> {
+        if test_times == 0 {
+            return Ok(self.table.iter().map(|(k, _)| (k.clone(), 0.)).collect());
+        }
+
         let mut tbl_freq = vec![0_usize; self.table_len()];
         if !self.repetitive {
             for _ in 0..test_times {

@@ -144,16 +144,16 @@ impl CalcStack {
 
     fn calc(mut self) -> Vec<f64> {
         loop {
-            let mut got_next = self.go_down();
-            if !got_next {
-                got_next = self.go_right();
+            if self.go_down() {
+                continue;
             }
-            if !got_next {
-                got_next = self.go_up_right();
+            if self.go_right() {
+                continue;
             }
-            if !got_next {
-                return self.result;
+            if self.go_up_right() {
+                continue;
             }
+            return self.result;
         }
     }
 

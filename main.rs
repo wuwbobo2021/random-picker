@@ -1,5 +1,6 @@
 use std::{
-    env, fs, io,
+    env, fs,
+    io::{self, Write},
     path::{Path, PathBuf},
     str::FromStr,
     time::Duration,
@@ -10,16 +11,14 @@ random-picker [conf|calc|test] <table_file> [pick_amount] [-n] [-f]
 Description:
 conf    Create the table file by user input
 calc    Calculate and print probabilities of being picked up
-test    Get a frequency table by statistics of 5,000,000 groups of results
+test    Get a frequency table by statistics of given amount of results
 -n      Do not print warning for the nonuniform distribution
 -f      Use the fast pseudo random generator instead of OS random source
 Note:
 `pick_amount` is set to 1 if not given, and it makes no sense with `conf`.
 When repetitive mode is off, `pick_amount` must not exceed the table length.
-More information: <https://crates.io/crates/random-picker/0.2.2>
+More information: <https://crates.io/crates/random-picker/0.2.3>
 ";
-
-const TEST_TIMES: usize = 5_000_000;
 
 struct Params {
     operation: Operation,
@@ -132,6 +131,7 @@ fn main() {
         }
         Calc => {
             let mut table = random_picker::Table::new();
+            println!("Calculating, please wait...");
             let time_cost = measure_exec_time(|| {
                 table = conf.calc_probabilities(params.pick_amount).unwrap();
             });
@@ -140,14 +140,22 @@ fn main() {
             random_picker::print_table(&table);
         }
         Test => {
+            print!("Input amount of result groups for making statistics: ");
+            let _ = io::stdout().flush();
+            let test_times = if let Some(Ok(input)) = io::stdin().lines().next() {
+                input.trim().parse().unwrap_or(5_000_000)
+            } else {
+                5_000_000
+            };
+            println!("Testing for {test_times} times, please wait...");
             let mut table = random_picker::Table::new();
             let time_cost = measure_exec_time(|| {
                 let result = if !params.use_fast_rng {
                     let mut picker = Picker::build(conf).unwrap();
-                    picker.test_freqs(params.pick_amount, TEST_TIMES)
+                    picker.test_freqs(params.pick_amount, test_times)
                 } else {
                     let mut picker = Picker::build_with_rng(conf, rand::thread_rng()).unwrap();
-                    picker.test_freqs(params.pick_amount, TEST_TIMES)
+                    picker.test_freqs(params.pick_amount, test_times)
                 };
                 if let Err(e) = result {
                     eprintln!("Error: {e}");
@@ -191,7 +199,6 @@ fn configure(conf: &mut random_picker::Config<String>) {
 }
 
 fn ask_yes_no(question: &str) -> Option<bool> {
-    use io::Write;
     print!("{} (Y/n) ", question);
     io::stdout().flush().ok()?;
     let s = io::stdin().lines().next()?.ok()?;

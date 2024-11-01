@@ -1,5 +1,9 @@
 # Changes
 
+## 0.2.3 (2024-11-02)
+* `std::error::Error` is implemented for `Error`.
+* Test times can be specified before running the test.
+
 ## 0.2.2 (2024-10-14)
 * The "(nonuniform)" command line warning can be disabled by `-n`.
 * Avoids allocation in the internal function `Picker::pick_indexes()`.
